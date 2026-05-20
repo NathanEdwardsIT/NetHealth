@@ -1,6 +1,8 @@
 # NetHealth
 ### Real-Time Network Stability & Gaming Connectivity Monitor
 
+<img width="1479" height="952" alt="image" src="https://github.com/user-attachments/assets/c7722b60-d96f-4040-a512-74b5a79e4736" />
+
 NetHealth is a Python-based network observability and diagnostics tool designed to monitor Wi-Fi stability, ISP routing quality, latency consistency, jitter, and packet loss in real time.
 
 Built initially as a solution for detecting unstable gaming conditions before queueing into competitive online games, the project evolved into a lightweight network monitoring and analysis platform inspired by tools like PingPlotter and MTR.
