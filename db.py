@@ -170,12 +170,33 @@ class NetHealthDB:
                     FOREIGN KEY (traceroute_id) REFERENCES traceroutes(id) ON DELETE CASCADE
                 );
 
+                CREATE TABLE IF NOT EXISTS custom_tests (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    started_at TEXT NOT NULL,
+                    ended_at TEXT NOT NULL,
+                    requested_sec INTEGER NOT NULL,
+                    actual_sec REAL NOT NULL,
+                    stopped_early INTEGER NOT NULL DEFAULT 0,
+                    avg_stability REAL NOT NULL,
+                    min_stability REAL NOT NULL,
+                    max_stability REAL NOT NULL,
+                    avg_router_loss REAL NOT NULL,
+                    avg_internet_loss REAL NOT NULL,
+                    avg_router_ping REAL NOT NULL,
+                    avg_internet_ping REAL NOT NULL,
+                    avg_router_jitter REAL NOT NULL,
+                    avg_internet_jitter REAL NOT NULL,
+                    final_quality TEXT NOT NULL,
+                    samples_json TEXT NOT NULL
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_summaries_ts ON summaries(ts);
                 CREATE INDEX IF NOT EXISTS idx_summaries_hour ON summaries(hour);
                 CREATE INDEX IF NOT EXISTS idx_summaries_weekday_hour
                     ON summaries(weekday, hour);
                 CREATE INDEX IF NOT EXISTS idx_ping_samples_ts ON ping_samples(ts);
                 CREATE INDEX IF NOT EXISTS idx_tr_hops_route ON traceroute_hops(traceroute_id);
+                CREATE INDEX IF NOT EXISTS idx_custom_tests_started ON custom_tests(started_at);
                 """
             )
             self._migrate_columns(conn)
@@ -489,6 +510,45 @@ class NetHealthDB:
                 (self._ts(ts), target, len(hops), json.dumps(hops)),
             )
             self._insert_hops(conn, cur.lastrowid, hops)
+
+    def insert_custom_test(self, result: Any) -> int:
+        """Save a completed custom/timed test (`timed_test.TimedTestResult`)."""
+        from dataclasses import asdict
+
+        summary = result.summary_dict()
+        samples = [asdict(s) for s in result.samples]
+        with self._conn() as conn:
+            cur = conn.execute(
+                """
+                INSERT INTO custom_tests (
+                    started_at, ended_at, requested_sec, actual_sec, stopped_early,
+                    avg_stability, min_stability, max_stability,
+                    avg_router_loss, avg_internet_loss,
+                    avg_router_ping, avg_internet_ping,
+                    avg_router_jitter, avg_internet_jitter,
+                    final_quality, samples_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    summary["started_at"],
+                    summary["ended_at"],
+                    summary["requested_sec"],
+                    summary["actual_sec"],
+                    int(summary["stopped_early"]),
+                    summary["avg_stability"],
+                    summary["min_stability"],
+                    summary["max_stability"],
+                    summary["avg_router_loss"],
+                    summary["avg_internet_loss"],
+                    summary["avg_router_ping"],
+                    summary["avg_internet_ping"],
+                    summary["avg_router_jitter"],
+                    summary["avg_internet_jitter"],
+                    summary["final_quality"],
+                    json.dumps(samples),
+                ),
+            )
+            return int(cur.lastrowid)
 
     def _cutoff_iso(self, days: int | None) -> str | None:
         if days is None:

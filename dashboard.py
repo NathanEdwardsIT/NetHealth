@@ -16,6 +16,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import numpy as np
 
+from custom_test_tab import CustomTestTab
 from db import READABLE_SUMMARY_COLUMNS, NetHealthDB, SummaryFilters, WEEKDAY_NAMES
 from network_tests import bufferbloat_test, run_traceroute
 
@@ -128,6 +129,24 @@ class DashboardApp:
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=8, pady=4)
 
         self._tab_overview()
+        self._custom_test = None
+        try:
+            self._custom_test = CustomTestTab(
+                self.notebook, self.root, self.db, self.targets
+            )
+        except Exception as exc:
+            err_frame = tk.Frame(self.notebook, bg="#0d1117")
+            self.notebook.add(err_frame, text="Custom Test")
+            tk.Label(
+                err_frame,
+                text=f"Custom Test tab failed to load:\n{exc}",
+                bg="#0d1117",
+                fg="#f85149",
+                font=("Segoe UI", 11),
+                justify=tk.LEFT,
+                padx=20,
+                pady=20,
+            ).pack(anchor="w")
         self._tab_analytics()
         self._tab_heatmaps()
         self._tab_explorer()
@@ -355,6 +374,8 @@ class DashboardApp:
     def pump(self) -> None:
         """Called from main-thread Tk pump (~4x/sec). Drives auto-refresh."""
         if not self.is_open():
+            return
+        if getattr(self, "_custom_test", None) and self._custom_test.running:
             return
         if not self.auto_refresh_var.get():
             return
